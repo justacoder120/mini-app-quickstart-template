@@ -53,7 +53,7 @@ export default function ExamplesPage() {
 
   return (
     <div className="flex flex-col items-center p-4 space-y-8 pb-20">
-      <h1 className="text-2xl font-bold">OnchainKit Component Ali</h1>
+      <h1 className="text-2xl font-bold">Testing</h1>
 
       {/* Wallet Component */}
       <section className="w-full max-w-md border p-4 rounded-lg bg-white">
