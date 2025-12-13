@@ -66,7 +66,7 @@ const mockPools = [
   }
 ];
 
-export function Dashboard({ onCreatePool, onViewPool, isDark, onToggleTheme }: DashboardProps) {
+export default function Dashboard({ onCreatePool, onViewPool, isDark, onToggleTheme }: DashboardProps) {
   return (
     <div className="min-h-screen flex flex-col pb-20">
       {/* Header */}
