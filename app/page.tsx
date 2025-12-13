@@ -87,7 +87,7 @@ export default function Dashboard({ onCreatePool, onViewPool, isDark, onToggleTh
             <div className="w-6 h-6 rounded-full bg-[#0052FF] flex items-center justify-center text-white text-xs">
               A
             </div>
-            <Wallet/>
+            <Wallet className="bg-[#0052FF] font-semibold"/>
           </div>
         </div>
       </header>
