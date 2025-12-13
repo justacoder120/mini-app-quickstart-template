@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
 import { useRouter } from "next/navigation";
 import { House, Compass, User, Plus, Moon, Sun } from 'lucide-react';
+import Head from 'next/head';
 import {
   Wallet,
   ConnectWallet,
@@ -66,8 +67,12 @@ const mockPools = [
   }
 ];
 
-export default function Dashboard({ onCreatePool, onViewPool, isDark, onToggleTheme }: DashboardProps) {
+export default function Home({ onCreatePool, onViewPool, isDark, onToggleTheme }: DashboardProps) {
   return (
+    <>
+      <Head>
+        <meta name="base:app_id" content="693c3ab4e6be54f5ed71d7cd" />
+      </Head>
     <div className="min-h-screen flex flex-col pb-20">
       {/* Header */}
       <header className="px-6 py-4 flex items-center justify-between">
@@ -184,5 +189,6 @@ export default function Dashboard({ onCreatePool, onViewPool, isDark, onToggleTh
         </div>
       </nav>
     </div>
+    </>
   );
 }
