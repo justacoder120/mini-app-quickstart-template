@@ -50,9 +50,9 @@ export default function Home() {
           />
         </div>
       </div>
-      <h1 className="text-4xl font-bold text-center">Base Mini App Template</h1>
+      <h1 className="text-4xl font-bold text-center">Main test GmmChain</h1>
       <p className="text-center text-gray-600">
-        Welcome to your new Base MiniApp!
+        sooonnnn..
       </p>
 
       <div className="fixed bottom-8 w-full px-4">
