@@ -87,9 +87,7 @@ export default function Dashboard({ onCreatePool, onViewPool, isDark, onToggleTh
             <div className="w-6 h-6 rounded-full bg-[#0052FF] flex items-center justify-center text-white text-xs">
               A
             </div>
-            <span className={`text-sm ${isDark ? 'text-[#B0B5BD]' : 'text-[#5D6778]'}`}>
-              0x12...4f8a
-            </span>
+            <Wallet/>
           </div>
         </div>
       </header>
