@@ -89,14 +89,16 @@ export default function Home({ onCreatePool, onViewPool, isDark, onToggleTheme }
               A
             </div>
             <Wallet>
-              <ConnectWallet className={`hover:bg-[#0052FF] ${
+              <ConnectWallet className={`hover:bg-[#0052FF] border ${
               isDark ? 'bg-[#1A1B1F] text-white' : 'bg-[#F5F7F9] text-black'
             }`}>
               <Avatar className="h-6 w-6 " />
               <Name />
             </ConnectWallet>
             <WalletDropdown>
-              <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
+              <Identity className={`px-4 pt-3 pb-2 ${
+              isDark ? 'text-white' : 'text-black'
+              }`} hasCopyAddressOnClick>
                 <Avatar />
                 <Name />
                 <Address className="text-gray-500" />
