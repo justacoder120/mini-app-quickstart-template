@@ -22,30 +22,18 @@ import { HABIT_POOL_ABI } from "./utils/abi";
 import { formatUnits } from "viem";
 
 // ⚠️ REPLACE THIS WITH YOUR NEW BASE SEPOLIA ADDRESS
-const CONTRACT_ADDRESS = "0x2b767c9602Af0C0e12A3fE45f5bFeDBFCB693C4E" as `0x${string}`;
+const CONTRACT_ADDRESS = "0x0f916eD1e51b8952263a8A310797715fF7Fb85C5" as `0x${string}`;
 
 export default function Home() {
   const router = useRouter();
   const [isDark, setIsDark] = useState(false);
 
   // 1. Get total number of pools
-// ... inside app/page.tsx
-
-  // 1. Get total number of pools with POLLING
-  const { 
-    data: poolCount, 
-    refetch: refetchCount,
-    error: countError 
-  } = useReadContract({
+  const { data: poolCount } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: HABIT_POOL_ABI,
     functionName: "poolCount",
-    query: {
-      refetchInterval: 2000, // Poll every 2 seconds
-    }
   });
-
-  // ... keep the rest of your useEffects
 
   // 2. Prepare hooks to fetch details for all pools
   // Note: For a hackathon, fetching all is fine. For prod, use pagination/subgraph.
