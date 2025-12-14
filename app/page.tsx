@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { House, Compass, User, Plus, Moon, Sun } from "lucide-react";
 import {
@@ -17,28 +17,43 @@ import {
   Address,
   EthBalance,
 } from "@coinbase/onchainkit/identity";
-import { useReadContract } from "wagmi";
+import { useReadContract, useReadContracts } from "wagmi";
 import { HABIT_POOL_ABI } from "./utils/abi";
+import { formatUnits } from "viem";
 
 // ⚠️ REPLACE THIS WITH YOUR NEW BASE SEPOLIA ADDRESS
-const CONTRACT_ADDRESS = "0xd9145CCE52D386f254917e481eB44e9943F39138";
+const CONTRACT_ADDRESS = "0xd9145CCE52D386f254917e481eB44e9943F39138" as `0x${string}`;
 
 export default function Home() {
   const router = useRouter();
   const [isDark, setIsDark] = useState(false);
 
-  // Read total pools from contract
+  // 1. Get total number of pools
   const { data: poolCount } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: HABIT_POOL_ABI,
     functionName: "poolCount",
   });
 
+  // 2. Prepare hooks to fetch details for all pools
+  // Note: For a hackathon, fetching all is fine. For prod, use pagination/subgraph.
+  const count = poolCount ? Number(poolCount) : 0;
+  const poolIds = Array.from({ length: count }, (_, i) => i);
+
+  const { data: poolsData } = useReadContracts({
+    contracts: poolIds.map((id) => ({
+      address: CONTRACT_ADDRESS,
+      abi: HABIT_POOL_ABI,
+      functionName: "getPoolDetails",
+      args: [BigInt(id)],
+    })),
+  });
+
   const toggleTheme = () => setIsDark(!isDark);
 
   return (
     <div
-      className={`min-h-screen flex flex-col pb-20 ${
+      className={`min-h-screen flex flex-col pb-24 ${
         isDark ? "bg-[#0A0B0D]" : "bg-gray-50"
       }`}
     >
@@ -48,8 +63,9 @@ export default function Home() {
           isDark ? "bg-[#0A0B0D]/80" : "bg-gray-50/80"
         } backdrop-blur-md`}
       >
+        {/* LOGO FIX: Added shrinking text for mobile */}
         <h1
-          className={`font-bold text-xl ${
+          className={`font-bold text-lg sm:text-xl truncate max-w-[120px] sm:max-w-none ${
             isDark ? "text-white" : "text-black"
           }`}
         >
@@ -105,7 +121,7 @@ export default function Home() {
         <div className="bg-gradient-to-br from-[#0052FF] to-[#0041CC] rounded-3xl p-6 text-white shadow-xl shadow-blue-500/20">
           <p className="text-sm opacity-90 mb-2 font-medium">Platform Stats</p>
           <p className="text-4xl font-bold mb-3">
-            {poolCount ? poolCount.toString() : "0"} Active Pools
+            {count} Active Pools
           </p>
           <div className="flex gap-2 text-sm bg-white/10 w-fit px-3 py-1 rounded-full backdrop-blur-sm">
             <span>🚀 Live on Base Sepolia</span>
@@ -113,17 +129,76 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content: POOL LIST */}
       <div className="px-6 flex-1">
         <h2
           className={`font-bold text-lg mb-4 ${
             isDark ? "text-white" : "text-gray-900"
           }`}
         >
-          Recommended Pools
+          Active Pools
         </h2>
 
-        {/* Mock Data for visual - You would fetch this from subgraph in production */}
+        <div className="space-y-3">
+          {poolsData?.map((result, index) => {
+            if (result.status !== "success") return null;
+            const pool = result.result as any; 
+            // pool structure: [name, contribution, duration, start, participants, settled]
+
+            return (
+              <div
+                key={index}
+                // NAV FIX: Navigate to specific pool
+                onClick={() => router.push(`/pool/${index}`)} 
+                className={`rounded-2xl p-4 cursor-pointer transition-all border shadow-sm flex items-center justify-between ${
+                  isDark
+                    ? "bg-[#1A1B1F] border-[#2A2B2F] hover:border-[#0052FF]"
+                    : "bg-white border-white hover:border-[#0052FF] hover:shadow-md"
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-blue-100/10 flex items-center justify-center text-2xl">
+                    🔥
+                  </div>
+                  <div>
+                    <h3
+                      className={`font-bold ${
+                        isDark ? "text-white" : "text-gray-900"
+                      }`}
+                    >
+                      {pool[0]} {/* Name */}
+                    </h3>
+                    <p
+                      className={`text-xs ${
+                        isDark ? "text-gray-400" : "text-gray-500"
+                      }`}
+                    >
+                      {Number(pool[2])} Days • {Number(pool[4])} Joined
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-[#0052FF] font-bold">
+                    ${formatUnits(pool[1], 6)} {/* USDC has 6 decimals */}
+                  </p>
+                  <p
+                    className={`text-[10px] uppercase tracking-wider ${
+                      isDark ? "text-gray-500" : "text-gray-400"
+                    }`}
+                  >
+                    Entry
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+          
+          {count === 0 && (
+             <div className="text-center py-10 text-gray-500">
+                No pools yet. Be the first to create one!
+             </div>
+          )}
+        </div>
       </div>
 
       {/* FAB */}
@@ -143,11 +218,16 @@ export default function Home() {
         } backdrop-blur-lg`}
       >
         <div className="flex items-center justify-around px-6">
-          <button className="flex flex-col items-center gap-1 text-[#0052FF]">
+          <button 
+             onClick={() => router.push('/')}
+             className="flex flex-col items-center gap-1 text-[#0052FF]">
             <House size={24} strokeWidth={2.5} />
             <span className="text-[10px] font-bold">Home</span>
           </button>
+          
+          {/* NAV FIX: Discover Tab */}
           <button
+            onClick={() => router.push('/discover')}
             className={`flex flex-col items-center gap-1 ${
               isDark ? "text-gray-500" : "text-gray-400"
             }`}
@@ -155,7 +235,10 @@ export default function Home() {
             <Compass size={24} />
             <span className="text-[10px] font-medium">Discover</span>
           </button>
+          
+          {/* NAV FIX: Profile Tab */}
           <button
+            onClick={() => router.push('/profile')}
             className={`flex flex-col items-center gap-1 ${
               isDark ? "text-gray-500" : "text-gray-400"
             }`}

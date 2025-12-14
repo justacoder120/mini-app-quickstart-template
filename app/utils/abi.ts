@@ -60,5 +60,30 @@ export const HABIT_POOL_ABI = [
     outputs: [{ name: "", type: "uint256" }],
     stateMutability: "view",
     type: "function"
+  },
+  {
+    inputs: [{ name: "_poolId", type: "uint256" }],
+    name: "getPoolDetails",
+    outputs: [
+      { name: "name", type: "string" },
+      { name: "contributionAmount", type: "uint256" },
+      { name: "durationDays", type: "uint256" },
+      { name: "startTime", type: "uint256" },
+      { name: "participantsCount", type: "uint256" },
+      { name: "isSettled", type: "bool" }
+    ],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [{ name: "_poolId", type: "uint256" }, { name: "_user", type: "address" }],
+    name: "getUserProgress",
+    outputs: [
+      { name: "verifiedDays", type: "uint256" },
+      { name: "votesCast", type: "uint256" },
+      { name: "withdrawn", type: "bool" }
+    ],
+    stateMutability: "view",
+    type: "function"
   }
 ] as const;
