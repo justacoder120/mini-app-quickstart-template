@@ -29,11 +29,23 @@ export default function Home() {
   const [isDark, setIsDark] = useState(false);
 
   // 1. Get total number of pools
-  const { data: poolCount } = useReadContract({
+// ... inside app/page.tsx
+
+  // 1. Get total number of pools with POLLING
+  const { 
+    data: poolCount, 
+    refetch: refetchCount,
+    error: countError 
+  } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: HABIT_POOL_ABI,
     functionName: "poolCount",
+    query: {
+      refetchInterval: 2000, // Poll every 2 seconds
+    }
   });
+
+  // ... keep the rest of your useEffects
 
   // 2. Prepare hooks to fetch details for all pools
   // Note: For a hackathon, fetching all is fine. For prod, use pagination/subgraph.
