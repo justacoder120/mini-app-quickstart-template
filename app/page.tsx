@@ -85,9 +85,6 @@ export default function Home({ onCreatePool, onViewPool, isDark, onToggleTheme }
           <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${
             isDark ? 'bg-[#1A1B1F]' : 'bg-[#F5F7F9]'
           }`}>
-            <div className="w-6 h-6 rounded-full bg-[#0052FF] flex items-center justify-center text-white text-xs">
-              A
-            </div>
             <Wallet>
               <ConnectWallet className={`hover:bg-[#0052FF] border ${
               isDark ? 'bg-[#1A1B1F] text-white' : 'bg-[#F5F7F9] text-black'
@@ -97,7 +94,7 @@ export default function Home({ onCreatePool, onViewPool, isDark, onToggleTheme }
             </ConnectWallet>
             <WalletDropdown>
               <Identity className={`px-4 pt-3 pb-2 ${
-              isDark ? 'text-white' : 'text-black'
+              isDark ? 'text-black' : 'text-white'
               }`} hasCopyAddressOnClick>
                 <Avatar />
                 <Name />
