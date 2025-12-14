@@ -89,7 +89,7 @@ export default function Home({ onCreatePool, onViewPool, isDark, onToggleTheme }
               A
             </div>
             <Wallet>
-              <ConnectWallet className="bg-[#000000] border text-button-text hover:bg-[#0052FF]">
+              <ConnectWallet className="bg-[#ffffff] border text-button-text hover:bg-[#0052FF]">
               <Avatar className="h-6 w-6 " />
               <Name />
             </ConnectWallet>
