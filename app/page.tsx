@@ -84,9 +84,9 @@ export default function Home({ onCreatePool, onViewPool, isDark, onToggleTheme }
           </button>
           <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${
             isDark ? 'bg-[#1A1B1F]' : 'bg-[#F5F7F9]'
-          }`}>
+          }`}> 
             <Wallet>
-              <ConnectWallet className={`hover:bg-[#0052FF] border ${
+              <ConnectWallet className={`hover:bg-[#0052FF] border px-4 py-2 rounded-full ${
               isDark ? 'bg-[#1A1B1F] text-white' : 'bg-[#F5F7F9] text-black'
             }`}>
               <Avatar className="h-6 w-6 " />
@@ -98,7 +98,9 @@ export default function Home({ onCreatePool, onViewPool, isDark, onToggleTheme }
               }`} hasCopyAddressOnClick>
                 <Avatar />
                 <Name />
-                <Address className="text-gray-500" />
+                <Address className={`${
+              isDark ? 'text-black' : 'text-white'
+              }`} />
                 <EthBalance />
               </Identity>
               <WalletDropdownBasename />
