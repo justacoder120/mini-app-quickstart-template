@@ -71,7 +71,7 @@ export default function Home({ onCreatePool, onViewPool, isDark, onToggleTheme }
   return (
     <>
       <Head>
-        <meta name="base:bc_zelf6k5c" content="693c3ab4e6be54f5ed71d7cd" />
+        <meta name="base:693c3ab4e6be54f5ed71d7cd" content="693c3ab4e6be54f5ed71d7cd" />
       </Head>
     <div className="min-h-screen flex flex-col pb-20">
       {/* Header */}
