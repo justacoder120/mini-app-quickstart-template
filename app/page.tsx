@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
 import { useRouter } from "next/navigation";
 import { House, Compass, User, Plus, Moon, Sun } from 'lucide-react';
-import { Metadata } from 'next';
 import {
   Wallet,
   ConnectWallet,
@@ -67,11 +66,6 @@ const mockPools = [
   }
 ];
 
-export const metadata: Metadata = {
-  other: {
-    'base:app_id': '693dfe1dd77c069a945bde9c',
-  },
-};
 
 export default function Home({ onCreatePool, onViewPool, isDark, onToggleTheme }: DashboardProps) {
   return (
@@ -94,7 +88,25 @@ export default function Home({ onCreatePool, onViewPool, isDark, onToggleTheme }
             <div className="w-6 h-6 rounded-full bg-[#0052FF] flex items-center justify-center text-white text-xs">
               A
             </div>
-            <Wallet />
+            <Wallet>
+              <ConnectWallet className="bg-[#ff0000] text-button-text">
+              <Avatar className="h-6 w-6 " />
+              <Name />
+            </ConnectWallet>
+            <WalletDropdown>
+              <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
+                <Avatar />
+                <Name />
+                <Address className="text-gray-500" />
+                <EthBalance />
+              </Identity>
+              <WalletDropdownBasename />
+              <WalletDropdownLink icon="wallet" href="https://keys.coinbase.com">
+                Wallet
+              </WalletDropdownLink>
+              <WalletDropdownDisconnect />
+            </WalletDropdown>
+            </Wallet>
           </div>
         </div>
       </header>
