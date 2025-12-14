@@ -13,7 +13,7 @@ import { HABIT_POOL_ABI } from "../utils/abi";
 import { useAccount } from "wagmi";
 
 // ⚠️ REPLACE WITH YOUR ADDRESS
-const CONTRACT_ADDRESS = "0xd9145CCE52D386f254917e481eB44e9943F39138";
+const CONTRACT_ADDRESS = "0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8";
 
 export default function CreatePool() {
   const router = useRouter();

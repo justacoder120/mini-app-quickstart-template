@@ -22,7 +22,7 @@ import { HABIT_POOL_ABI } from "./utils/abi";
 import { formatUnits } from "viem";
 
 // ⚠️ REPLACE THIS WITH YOUR NEW BASE SEPOLIA ADDRESS
-const CONTRACT_ADDRESS = "0xd9145CCE52D386f254917e481eB44e9943F39138" as `0x${string}`;
+const CONTRACT_ADDRESS = "0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8" as `0x${string}`;
 
 export default function Home() {
   const router = useRouter();

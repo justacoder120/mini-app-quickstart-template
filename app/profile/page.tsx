@@ -5,7 +5,7 @@ import { useAccount, useReadContract, useReadContracts } from "wagmi";
 import { HABIT_POOL_ABI } from "../utils/abi";
 import { Identity, Avatar, Name, Address } from "@coinbase/onchainkit/identity";
 
-const CONTRACT_ADDRESS = "0xd9145CCE52D386f254917e481eB44e9943F39138";
+const CONTRACT_ADDRESS = "0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8";
 
 export default function ProfilePage() {
   const router = useRouter();
