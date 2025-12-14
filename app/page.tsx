@@ -71,7 +71,7 @@ export default function Home({ onCreatePool, onViewPool, isDark, onToggleTheme }
   return (
     <>
       <Head>
-        <meta name="base:app_id" content="693c3ab4e6be54f5ed71d7cd" />
+        <meta name="base:bc_zelf6k5c" content="693c3ab4e6be54f5ed71d7cd" />
       </Head>
     <div className="min-h-screen flex flex-col pb-20">
       {/* Header */}
@@ -92,7 +92,7 @@ export default function Home({ onCreatePool, onViewPool, isDark, onToggleTheme }
             <div className="w-6 h-6 rounded-full bg-[#0052FF] flex items-center justify-center text-white text-xs">
               A
             </div>
-            <Wallet className="!bg-purple-600 hover:!bg-purple-700 !text-xl !py-3 !px-6 rounded-lg shadow-xl font-bold"/>
+            <Wallet />
           </div>
         </div>
       </header>
@@ -101,8 +101,8 @@ export default function Home({ onCreatePool, onViewPool, isDark, onToggleTheme }
       <div className="px-6 pt-4 pb-6">
         <div className="bg-gradient-to-br from-[#0052FF] to-[#0041CC] rounded-3xl p-6 text-white">
           <p className="text-sm opacity-90 mb-2">Your Total Stake</p>
-          <p className="text-4xl mb-3">$450.00 USDC</p>
-          <p className="text-sm opacity-90">Potential Winnings: <span className="text-[#00C805]">+$120</span></p>
+          <p className="text-4xl mb-3">$0 USDC</p>
+          <p className="text-sm opacity-90">Potential Winnings: <span className="text-[#00C805]">+$0</span></p>
         </div>
       </div>
 
