@@ -37,7 +37,7 @@ export default function PoolDetailsPage({ params }: { params: Promise<{ id: stri
   }
 
   // 2. Fetch User Progress (to see if joined)
-  const { data: userProgress, error: progressError, refetch: refetchProgress } = useReadContract({
+  const { data: userProgress, error: progressError, isLoading: progressLoading, refetch: refetchProgress } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: HABIT_POOL_ABI,
     functionName: "getUserProgress",
@@ -70,7 +70,17 @@ export default function PoolDetailsPage({ params }: { params: Promise<{ id: stri
   const participantsCount = poolDetails ? Number((poolDetails as any)[4]) : 0;
 
   // userProgress format: [verifiedDays, votesCast, withdrawn, hasJoined]
-  const hasJoined = userProgress ? (userProgress as any)[3] : false;
+  console.log("DEBUG: userProgress raw:", userProgress);
+  let hasJoined = false;
+  if (userProgress) {
+      if (Array.isArray(userProgress)) {
+          hasJoined = userProgress[3];
+      } else {
+          // It might be an object if strict mode/abitype is enabled
+          hasJoined = (userProgress as any).hasJoined;
+      }
+  }
+  console.log("DEBUG: hasJoined value:", hasJoined);
   
   const isAllowanceSufficient = allowance ? allowance >= rawStakeAmount : false;
 
@@ -166,7 +176,21 @@ export default function PoolDetailsPage({ params }: { params: Promise<{ id: stri
               </div>
            ) : (
               <>
-                 {!hasJoined ? (
+                 {/* Loading/Error States */}
+                 {progressLoading && (
+                     <div className="text-center py-8 text-gray-400 animate-pulse">
+                         Checking status...
+                     </div>
+                 )}
+                 
+                 {progressError && (
+                     <div className="text-center py-4 text-red-500 bg-red-50 rounded-xl mb-4 border border-red-100">
+                         <p className="font-bold text-sm">Error checking join status.</p>
+                         <p className="text-xs mt-1 opacity-80">Make sure you are on Base Sepolia and the contract is deployed.</p>
+                     </div>
+                 )}
+
+                 {!progressLoading && !hasJoined && !progressError && (
                     <div className="space-y-4">
                         <div className="flex items-start gap-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
                            <ShieldCheck className="text-[#0052FF] flex-shrink-0" size={24} />
@@ -199,7 +223,9 @@ export default function PoolDetailsPage({ params }: { params: Promise<{ id: stri
                             </TransactionStatus>
                         </Transaction>
                     </div>
-                 ) : (
+                 )}
+
+                 {!progressLoading && hasJoined && (
                     <div className="space-y-6">
                         <div className="flex items-center gap-3 p-4 bg-green-50 rounded-xl border border-green-100 text-green-700">
                             <CheckCircle size={24} />
