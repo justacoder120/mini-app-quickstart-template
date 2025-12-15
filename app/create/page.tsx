@@ -11,8 +11,11 @@ import {
 } from "@coinbase/onchainkit/transaction";
 import { HABIT_POOL_ABI } from "../utils/abi";
 import { useAccount } from "wagmi";
+import { encodeFunctionData } from "viem";
 
-import { CONTRACT_ADDRESS, CHAIN_ID } from "../utils/contracts";
+// Debugging: Revert to hardcoded to rule out import issues
+const CONTRACT_ADDRESS = "0x2b767c9602Af0C0e12A3fE45f5bFeDBFCB693C4E";
+import { CHAIN_ID } from "../utils/contracts";
 
 export default function CreatePool() {
   const router = useRouter();
@@ -38,21 +41,27 @@ export default function CreatePool() {
   // Helper: Get Unix Timestamp
   const getUnixTime = (dateString: string) => Math.floor(new Date(dateString).getTime() / 1000);
 
+  // ENCODED DATA for Transaction
+  const encodedData = encodeFunctionData({
+    abi: HABIT_POOL_ABI,
+    functionName: "createPool",
+    args: [
+      name,
+      BigInt(Number(stake) * 1_000_000), // USDC (6 decimals)
+      BigInt(duration),
+      BigInt(getUnixTime(startTime)),
+      BigInt(getUnixTime(startTime)), // Registration ends exactly when it starts
+      BigInt(minParticipants),
+      Number(quorum) * 100, // Convert % to BPS (e.g. 50% -> 5000)
+      BigInt(minVotes),
+    ],
+  });
+
   const createPoolCalls = [
     {
       to: CONTRACT_ADDRESS as `0x${string}`,
-      abi: HABIT_POOL_ABI,
-      functionName: "createPool",
-      args: [
-        name,
-        BigInt(Number(stake) * 1_000_000), // USDC (6 decimals)
-        BigInt(duration),
-        BigInt(getUnixTime(startTime)),
-        BigInt(getUnixTime(startTime)), // Registration ends exactly when it starts
-        BigInt(minParticipants),
-        Number(quorum) * 100, // Convert % to BPS (e.g. 50% -> 5000)
-        BigInt(minVotes),
-      ],
+      data: encodedData,
+      value: BigInt(0),
     },
   ];
 
