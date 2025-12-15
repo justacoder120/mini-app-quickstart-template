@@ -12,8 +12,7 @@ import {
 import { HABIT_POOL_ABI } from "../utils/abi";
 import { useAccount } from "wagmi";
 
-// ⚠️ REPLACE WITH YOUR ADDRESS
-const CONTRACT_ADDRESS = "0x2b767c9602Af0C0e12A3fE45f5bFeDBFCB693C4E";
+import { CONTRACT_ADDRESS, CHAIN_ID } from "../utils/contracts";
 
 export default function CreatePool() {
   const router = useRouter();
@@ -200,7 +199,7 @@ export default function CreatePool() {
         <div className="max-w-lg mx-auto">
           {isConnected ? (
             <Transaction
-              chainId={84532} // Base Sepolia
+              chainId={CHAIN_ID} // Base Sepolia
               calls={createPoolCalls}
               onStatus={(status) => {
                 if (status.statusName === "success") {

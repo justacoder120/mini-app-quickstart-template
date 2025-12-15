@@ -14,7 +14,7 @@ import {
 } from "@coinbase/onchainkit/transaction";
 
 // ⚠️ REPLACE WITH YOUR CONTRACT ADDRESS
-const CONTRACT_ADDRESS = "0xYOUR_CONTRACT_ADDRESS_HERE" as `0x${string}`;
+import { CONTRACT_ADDRESS, CHAIN_ID } from "../../utils/contracts";
 
 export default function PoolDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -126,7 +126,7 @@ export default function PoolDetailsPage({ params }: { params: Promise<{ id: stri
                     onChange={(e) => setVideoLink(e.target.value)}
                  />
                  <Transaction
-                   chainId={84532}
+                   chainId={CHAIN_ID}
                    calls={submitProofCalls}
                  >
                    <TransactionButton className="w-full bg-[#0052FF] text-white font-bold py-3 rounded-xl" text="Submit Proof" />
