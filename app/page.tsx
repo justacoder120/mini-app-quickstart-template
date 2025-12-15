@@ -21,8 +21,7 @@ import { useReadContract, useReadContracts } from "wagmi";
 import { HABIT_POOL_ABI } from "./utils/abi";
 import { formatUnits } from "viem";
 
-// ⚠️ REPLACE THIS WITH YOUR NEW BASE SEPOLIA ADDRESS
-const CONTRACT_ADDRESS = "0x0f916eD1e51b8952263a8A310797715fF7Fb85C5" as `0x${string}`;
+import { CONTRACT_ADDRESS, CHAIN_ID } from "./utils/contracts";
 
 export default function Home() {
   const router = useRouter();
@@ -33,7 +32,10 @@ export default function Home() {
     address: CONTRACT_ADDRESS,
     abi: HABIT_POOL_ABI,
     functionName: "poolCount",
+    chainId: CHAIN_ID,
   });
+
+
 
   // 2. Prepare hooks to fetch details for all pools
   // Note: For a hackathon, fetching all is fine. For prod, use pagination/subgraph.
@@ -46,6 +48,7 @@ export default function Home() {
       abi: HABIT_POOL_ABI,
       functionName: "getPoolDetails",
       args: [BigInt(id)],
+      chainId: CHAIN_ID,
     })),
   });
 
