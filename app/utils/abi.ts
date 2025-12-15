@@ -81,7 +81,8 @@ export const HABIT_POOL_ABI = [
     outputs: [
       { name: "verifiedDays", type: "uint256" },
       { name: "votesCast", type: "uint256" },
-      { name: "withdrawn", type: "bool" }
+      { name: "withdrawn", type: "bool" },
+      { name: "hasJoined", type: "bool" }
     ],
     stateMutability: "view",
     type: "function"

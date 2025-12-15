@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+#contract
+HabitPoolV2.sol
+update_sol_script.py

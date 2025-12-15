@@ -101,20 +101,33 @@ export default function CreatePool() {
           <label className="block text-xs font-bold text-gray-500 mb-4 uppercase tracking-wide">
             Stake Amount (USDC)
           </label>
-          <div className="grid grid-cols-3 gap-3">
-            {["10", "50", "100"].map((amt) => (
-              <button
-                key={amt}
-                onClick={() => setStake(amt)}
-                className={`py-3 rounded-xl border-2 font-bold text-lg transition-all ${
-                  stake === amt
-                    ? "border-[#0052FF] bg-[#0052FF] text-white shadow-lg shadow-blue-500/30"
-                    : "border-gray-100 bg-gray-50 text-gray-600 hover:border-gray-200"
-                }`}
-              >
-                ${amt}
-              </button>
-            ))}
+          <div className="space-y-4">
+             <div className="grid grid-cols-3 gap-3">
+                {["10", "50", "100"].map((amt) => (
+                <button
+                    key={amt}
+                    onClick={() => setStake(amt)}
+                    className={`py-3 rounded-xl border-2 font-bold text-lg transition-all ${
+                    stake === amt
+                        ? "border-[#0052FF] bg-[#0052FF] text-white shadow-lg shadow-blue-500/30"
+                        : "border-gray-100 bg-gray-50 text-gray-600 hover:border-gray-200"
+                    }`}
+                >
+                    ${amt}
+                </button>
+                ))}
+             </div>
+             
+             <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">$</span>
+                <input
+                    type="number"
+                    placeholder="Enter custom amount"
+                    className="w-full pl-8 pr-4 py-3 bg-gray-50 rounded-xl border-2 border-transparent focus:border-[#0052FF] focus:bg-white transition-all font-bold text-lg outline-none"
+                    value={stake}
+                    onChange={(e) => setStake(e.target.value)}
+                />
+             </div>
           </div>
         </section>
 
