@@ -13,9 +13,7 @@ import { HABIT_POOL_ABI } from "../utils/abi";
 import { useAccount } from "wagmi";
 import { encodeFunctionData } from "viem";
 
-// Debugging: Revert to hardcoded to rule out import issues
-const CONTRACT_ADDRESS = "0x2b767c9602Af0C0e12A3fE45f5bFeDBFCB693C4E";
-import { CHAIN_ID } from "../utils/contracts";
+import { CHAIN_ID, CONTRACT_ADDRESS } from "../utils/contracts";
 
 export default function CreatePool() {
   const router = useRouter();
