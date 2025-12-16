@@ -184,9 +184,12 @@ export default function PoolDetailsPage({ params }: { params: Promise<{ id: stri
                  )}
                  
                  {progressError && (
-                     <div className="text-center py-4 text-red-500 bg-red-50 rounded-xl mb-4 border border-red-100">
+                     <div className="text-center py-4 text-red-500 bg-red-50 rounded-xl mb-4 border border-red-100 px-4">
                          <p className="font-bold text-sm">Error checking join status.</p>
-                         <p className="text-xs mt-1 opacity-80">Make sure you are on Base Sepolia and the contract is deployed.</p>
+                         <p className="text-xs mt-1 opacity-80 mb-2">Make sure you are on Base Sepolia and the contract is deployed.</p>
+                         <p className="text-[10px] font-mono bg-red-100 p-2 rounded text-left overflow-auto max-h-20">
+                            {progressError.message || JSON.stringify(progressError)}
+                         </p>
                      </div>
                  )}
 
