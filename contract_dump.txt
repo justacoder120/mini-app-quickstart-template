@@ -1,0 +1,361 @@
+﻿// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+
+contract HabitPoolV2 is Ownable, ReentrancyGuard {
+    using SafeERC20 for IERC20;
+    uint256 public constant DAY = 1 days;
+    uint256 public constant VOTING_GRACE = 1 days;      
+    uint256 public constant MAX_START_DELAY = 30 days;   // UPDATED: Increased from 3 to 30 days
+
+    struct Submission {
+        string videoHash;
+        uint256 timestamp;
+        uint256 yesVotes;
+        uint256 noVotes;
+        bool isVerified;
+    }
+
+    struct Pool {
+        string name;
+        uint256 contributionAmount;
+        uint256 startTime;
+        uint256 registrationEndTime;
+        uint256 durationDays;
+        uint256 minContributors;
+        uint16 quorumBps; 
+        // NEW: Minimum votes a user must cast to qualify for the prize
+        uint256 minVotesRequired; 
+        address[] participants;
+        mapping(address => bool) hasJoined;
+        bool isSettled;      // Has processPoolResults been called?
+        bool isCanceled;     // Is the pool canceled (refund mode)?
+        uint256 rewardPerWinner; // Calculated at settlement
+        bool isRefundState;      // If true, everyone gets their contribution back
+    }
+    IERC20 public immutable usdcToken;
+    address public treasury;
+    uint256 public poolCount;
+    mapping(uint256 => Pool) private pools;
+    // PoolID -> Day -> User -> Submission
+    mapping(uint256 => mapping(uint256 => mapping(address => Submission))) public submissions;
+    // PoolID -> Day -> Target -> Voter -> HasVoted?
+    mapping(uint256 => mapping(uint256 => mapping(address => mapping(address => bool)))) public hasVoted;
+    // PoolID -> User -> number of verified days
+    mapping(uint256 => mapping(address => uint256)) public verifiedDaysCount;
+    // NEW: PoolID -> User -> number of votes cast
+    mapping(uint256 => mapping(address => uint256)) public votesCastCount;
+    // NEW: PoolID -> User -> Has Withdrawn?
+    mapping(uint256 => mapping(address => bool)) public hasWithdrawn;
+    event TreasuryUpdated(address indexed newTreasury);
+    event PoolCreated(uint256 indexed poolId, string name, uint256 contribution, uint256 start, uint256 duration);
+    event Joined(uint256 indexed poolId, address indexed user);
+    event ProofSubmitted(uint256 indexed poolId, uint256 indexed day, address indexed user, string videoHash);
+    event Voted(uint256 indexed poolId, uint256 indexed day, address indexed voter, address target, bool approve);
+    event DayVerified(uint256 indexed poolId, uint256 indexed day, address indexed user);
+    // Updated Events for Pull Pattern
+    event PoolProcessed(uint256 indexed poolId, uint256 winnerCount, uint256 rewardPerWinner, bool isRefund);
+    event Withdrawal(uint256 indexed poolId, address indexed user, uint256 amount);
+    constructor(address _usdcAddress) Ownable(msg.sender) {
+        require(_usdcAddress != address(0), "Invalid token");
+        usdcToken = IERC20(_usdcAddress);
+        treasury = msg.sender;
+    }
+
+    function setTreasury(address _treasury) external onlyOwner {
+        require(_treasury != address(0), "Invalid treasury");
+        treasury = _treasury;
+        emit TreasuryUpdated(_treasury);
+    }
+    // --------------------------
+    // 1. Create Pool
+    // --------------------------
+    function createPool(
+        string calldata _name,
+        uint256 _contributionAmount,
+        uint256 _durationInDays,
+        uint256 _startTime,
+        uint256 _registrationEndTime,
+        uint256 _minContributors,
+        uint16 _quorumBps,
+        uint256 _minVotesRequired // NEW PARAM
+    ) external {
+        require(_contributionAmount > 0, "Contribution = 0");
+        require(_durationInDays > 0, "Duration = 0");
+        require(_minContributors > 0, "Min contributors = 0");
+        require(_startTime > block.timestamp, "Start must be future");
+        require(_startTime <= block.timestamp + MAX_START_DELAY, "Start too far");
+        require(_registrationEndTime <= _startTime, "Reg end > start");
+        require(_registrationEndTime > block.timestamp, "Reg already closed");
+        require(_quorumBps <= 10_000, "Invalid quorum");
+        uint256 poolId = poolCount++;
+        Pool storage p = pools[poolId];
+        p.name = _name;
+        p.contributionAmount = _contributionAmount;
+        p.startTime = _startTime;
+        p.registrationEndTime = _registrationEndTime;
+        p.durationDays = _durationInDays;
+        p.minContributors = _minContributors;
+        p.quorumBps = _quorumBps;
+        p.minVotesRequired = _minVotesRequired;
+        emit PoolCreated(poolId, _name, _contributionAmount, _startTime, _durationInDays);
+    }
+    // --------------------------
+    // 2. Join Pool
+    // --------------------------
+    function joinPool(uint256 _poolId) external {
+        require(_poolId < poolCount, "Invalid pool");
+        Pool storage pool = pools[_poolId];
+        require(!pool.isSettled && !pool.isCanceled, "Pool closed");
+        require(block.timestamp <= pool.registrationEndTime, "Registration closed");
+        require(!pool.hasJoined[msg.sender], "Already joined");
+        pool.hasJoined[msg.sender] = true;
+        pool.participants.push(msg.sender);
+        usdcToken.safeTransferFrom(msg.sender, address(this), pool.contributionAmount);
+        emit Joined(_poolId, msg.sender);
+    }
+    // --------------------------
+    // 3. Submit Proof
+    // --------------------------
+    function submitProof(uint256 _poolId, string calldata _videoHash) external {
+        require(_poolId < poolCount, "Invalid pool");
+        Pool storage pool = pools[_poolId];
+        require(!pool.isSettled && !pool.isCanceled, "Pool closed");
+        require(pool.hasJoined[msg.sender], "Not a participant");
+        require(block.timestamp >= pool.startTime, "Not started");
+        require(block.timestamp < _poolEndTime(pool), "Pool ended");
+        uint256 day = _currentDay(pool);
+        require(day < pool.durationDays, "Invalid day");
+        Submission storage sub = submissions[_poolId][day][msg.sender];
+        require(bytes(sub.videoHash).length == 0, "Already submitted");
+        sub.videoHash = _videoHash;
+        sub.timestamp = block.timestamp;
+        emit ProofSubmitted(_poolId, day, msg.sender, _videoHash);
+    }
+    // --------------------------
+    // 4. Vote
+    // --------------------------
+    function vote(uint256 _poolId, uint256 _day, address _targetUser, bool _approve) external {
+        require(_poolId < poolCount, "Invalid pool");
+        Pool storage pool = pools[_poolId];
+        require(!pool.isSettled && !pool.isCanceled, "Pool closed");
+        require(block.timestamp >= pool.startTime, "Not started");
+        require(block.timestamp <= _votingDeadline(pool, _day), "Voting closed");
+        require(pool.hasJoined[msg.sender], "Not a participant");
+        require(msg.sender != _targetUser, "No self vote");
+
+        // Voter Requirement: Must have submitted their own proof for this day
+        Submission storage voterSub = submissions[_poolId][_day][msg.sender];
+        require(bytes(voterSub.videoHash).length > 0, "Submit your proof first");
+
+        // Target Check
+        Submission storage targetSub = submissions[_poolId][_day][_targetUser];
+        require(bytes(targetSub.videoHash).length > 0, "Target not submitted");
+        // Check double vote
+        require(!hasVoted[_poolId][_day][_targetUser][msg.sender], "Already voted");
+        hasVoted[_poolId][_day][_targetUser][msg.sender] = true;
+        // Record Vote
+        if (_approve) targetSub.yesVotes++;
+        else targetSub.noVotes++;
+        // NEW: Increment voter's activity count
+        votesCastCount[_poolId][msg.sender]++;
+        emit Voted(_poolId, _day, msg.sender, _targetUser, _approve);
+        // Check Verification Logic (Quorum + Majority)
+        _tryVerifyDay(pool, _poolId, _day, _targetUser, targetSub);
+    }
+    function _tryVerifyDay(
+        Pool storage pool, 
+        uint256 _poolId, 
+        uint256 _day, 
+        address _targetUser, 
+        Submission storage targetSub
+    ) internal {
+        if (targetSub.isVerified) return; // Already verified
+        uint256 totalParticipants = pool.participants.length;
+        uint256 eligibleVoters = totalParticipants > 0 ? (totalParticipants - 1) : 0;
+        uint256 minVotes = 0;
+        if (pool.quorumBps > 0 && eligibleVoters > 0) {
+            minVotes = (eligibleVoters * uint256(pool.quorumBps) + 9_999) / 10_000;
+            if (minVotes == 0) minVotes = 1;
+        }
+        uint256 totalVotes = targetSub.yesVotes + targetSub.noVotes;
+        if (totalVotes >= minVotes && targetSub.yesVotes > targetSub.noVotes) {
+            targetSub.isVerified = true;
+            verifiedDaysCount[_poolId][_targetUser] += 1;
+            emit DayVerified(_poolId, _day, _targetUser);
+        }
+    }
+    // --------------------------
+    // 5. Process Results (The Calculation Phase)
+    // --------------------------
+    /**
+     * @notice Calculates winners and rewards. Does NOT transfer funds.
+     * @dev Anyone can call this after the pool ends. 
+     * It iterates participants (O(N)), so gas cost scales with user count.
+     */
+    function processPoolResults(uint256 _poolId) external nonReentrant {
+        require(_poolId < poolCount, "Invalid pool");
+        Pool storage pool = pools[_poolId];
+        require(!pool.isSettled, "Already settled");
+        // Must wait for the final voting grace period to end
+        require(block.timestamp >= _poolEndTime(pool) + VOTING_GRACE, "Not ready to settle");
+        pool.isSettled = true; // Mark settled to prevent re-execution
+        uint256 participantCount = pool.participants.length;
+        // Case A: Pool never launched or had too few people
+        if (participantCount < pool.minContributors) {
+            pool.isCanceled = true;
+            pool.isRefundState = true;
+            pool.rewardPerWinner = pool.contributionAmount; // Refund amount
+            emit PoolProcessed(_poolId, 0, pool.contributionAmount, true);
+            return;
+        }
+        // Case B: Calculate Winners
+        uint256 winnerCount = 0;
+        for (uint256 i = 0; i < participantCount; i++) {
+            address user = pool.participants[i];
+            // WINNER CRITERIA:
+            // 1. Must have verified every single day
+            // 2. Must have cast at least minVotesRequired
+            bool survived = verifiedDaysCount[_poolId][user] == pool.durationDays;
+            bool activeVoter = votesCastCount[_poolId][user] >= pool.minVotesRequired;
+            if (survived && activeVoter) {
+                winnerCount++;
+            }
+        }
+        uint256 totalPot = pool.contributionAmount * participantCount;
+        if (winnerCount > 0) {
+            // Standard Payout: Split pot among winners
+            pool.rewardPerWinner = totalPot / winnerCount;
+            pool.isRefundState = false;
+        } else {
+            // Everyone failed? Refund everyone (minus small dust to treasury potentially)
+            pool.rewardPerWinner = totalPot / participantCount;
+            pool.isRefundState = true; 
+        }
+        emit PoolProcessed(_poolId, winnerCount, pool.rewardPerWinner, pool.isRefundState);
+    }
+    // --------------------------
+    // 6. Withdraw (The Pull Phase)
+    // --------------------------
+    /**
+     * @notice Users call this individually to claim their money.
+     * @dev Works even if other users are blacklisted.
+     */
+    function withdrawReward(uint256 _poolId) external nonReentrant {
+        require(_poolId < poolCount, "Invalid pool");
+        Pool storage pool = pools[_poolId];
+        require(pool.isSettled, "Results not processed yet");
+        require(pool.hasJoined[msg.sender], "Not a participant");
+        require(!hasWithdrawn[_poolId][msg.sender], "Already withdrawn");
+        uint256 amountToSend = 0;
+        if (pool.isRefundState) {
+            // If canceled OR no winners, everyone gets the calculated refund amount
+            amountToSend = pool.rewardPerWinner;
+        } else {
+            // Winner take all mode
+            bool survived = verifiedDaysCount[_poolId][msg.sender] == pool.durationDays;
+            bool activeVoter = votesCastCount[_poolId][msg.sender] >= pool.minVotesRequired;
+            if (survived && activeVoter) {
+                amountToSend = pool.rewardPerWinner;
+            }
+        }
+        require(amountToSend > 0, "No reward eligible");
+        // Mark as withdrawn BEFORE transfer (Checks-Effects-Interactions)
+        hasWithdrawn[_poolId][msg.sender] = true;
+        usdcToken.safeTransfer(msg.sender, amountToSend);
+        emit Withdrawal(_poolId, msg.sender, amountToSend);
+    }
+    // --------------------------
+    // 7. Treasury Sweep
+    // --------------------------
+    /**
+     * @notice Allows admin to sweep dust left over from integer division logic.
+     * @dev Only callable after a specific time or if needed. 
+     * Safe to call anytime as it takes balance - (unclaimed obligations).
+     * (Simplified version here just takes actual balance, assumes protocol fees in future versions)
+     */
+    function sweepTreasury() external onlyOwner {
+        // In a real production contract, you would track "totalOwed" to users 
+        // and only sweep (balance - totalOwed). 
+        // For this Hackathon/MVP version, we assume treasury acts as the dust bin.
+        // Implementation omitted for safety in this specific snippet to prevent accidental user fund drainage.
+    }
+
+    // --------------------------
+    // Helpers
+    // --------------------------
+    function _poolEndTime(Pool storage pool) internal view returns (uint256) {
+        return pool.startTime + (pool.durationDays * DAY);
+    }
+    function _currentDay(Pool storage pool) internal view returns (uint256) {
+        require(block.timestamp >= pool.startTime, "Not started");
+        return (block.timestamp - pool.startTime) / DAY;
+    }
+    function _votingDeadline(Pool storage pool, uint256 day) internal view returns (uint256) {
+        return pool.startTime + ((day + 1) * DAY) + VOTING_GRACE;
+    }
+    // View Functions for UI
+    function getPoolState(uint256 _poolId) external view returns (
+        bool settled, 
+        bool canceled, 
+        bool refundState, 
+        uint256 rewardPerWinner,
+        uint256 participants
+    ) {
+        Pool storage p = pools[_poolId];
+        return (p.isSettled, p.isCanceled, p.isRefundState, p.rewardPerWinner, p.participants.length);
+    }
+    function getUserProgress(uint256 _poolId, address _user) external view returns (
+        uint256 verifiedDays, 
+        uint256 votesCast, 
+        bool withdrawn,
+        bool hasJoined
+    ) {
+        return (
+            verifiedDaysCount[_poolId][_user], 
+            votesCastCount[_poolId][_user], 
+            hasWithdrawn[_poolId][_user],
+            pools[_poolId].hasJoined[_user]
+        );
+    }
+    // Add this function inside your HabitPoolV2 contract
+    function getPoolDetails(uint256 _poolId) external view returns (
+        string memory name,
+        uint256 contributionAmount,
+        uint256 durationDays,
+        uint256 startTime,
+        uint256 participantsCount,
+        bool isSettled
+    ) {
+        Pool storage p = pools[_poolId];
+        return (
+            p.name, 
+            p.contributionAmount, 
+            p.durationDays, 
+            p.startTime, 
+            p.participants.length, 
+            p.isSettled
+        );
+    }
+    // --------------------------
+    // 8. Getters for UI
+    // --------------------------
+    function getParticipants(uint256 _poolId) external view returns (address[] memory) {
+        return pools[_poolId].participants;
+    }
+
+    function getSubmission(uint256 _poolId, uint256 _day, address _user) external view returns (
+        string memory videoHash,
+        uint256 timestamp,
+        uint256 yesVotes,
+        uint256 noVotes,
+        bool isVerified
+    ) {
+        Submission storage s = submissions[_poolId][_day][_user];
+        return (s.videoHash, s.timestamp, s.yesVotes, s.noVotes, s.isVerified);
+    }
+}

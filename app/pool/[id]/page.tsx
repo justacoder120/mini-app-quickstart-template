@@ -2,7 +2,7 @@
 import { use, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, User, CheckCircle, XCircle, Clock, Trophy, ShieldCheck, Activity } from "lucide-react";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useReadContract, useReadContracts, useWriteContract } from "wagmi";
 import { HABIT_POOL_ABI, ERC20_ABI } from "../../utils/abi";
 import { formatUnits } from "viem";
 import {
@@ -58,6 +58,37 @@ export default function PoolDetailsPage({ params }: { params: Promise<{ id: stri
     chainId: CHAIN_ID,
     query: {
         enabled: !!address,
+    }
+  });
+  
+  // 4. Fetch Participants (for voting)
+  const { data: participants } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: HABIT_POOL_ABI,
+    functionName: "getParticipants",
+    args: [poolId],
+    chainId: CHAIN_ID,
+  });
+
+  // Calculate Current Day (Simple approximation based on start time)
+  // detailed logic would match contract _currentDay
+  const startTime = poolDetails ? Number((poolDetails as any)[3]) : 0;
+  const currentTime = Math.floor(Date.now() / 1000);
+  const currentDay = startTime > 0 && currentTime >= startTime 
+    ? Math.floor((currentTime - startTime) / 86400) 
+    : 0;
+
+  // 5. Fetch Submissions for ALL participants for the Current Day
+  const { data: submissions } = useReadContracts({
+    contracts: participants?.map((participant) => ({
+        address: CONTRACT_ADDRESS,
+        abi: HABIT_POOL_ABI,
+        functionName: "getSubmission",
+        args: [poolId, BigInt(currentDay), participant],
+        chainId: CHAIN_ID, 
+    })) || [],
+    query: {
+        enabled: !!participants && participants.length > 0,
     }
   });
 
@@ -228,15 +259,11 @@ export default function PoolDetailsPage({ params }: { params: Promise<{ id: stri
                     </div>
                  )}
 
-                 {!progressLoading && hasJoined && (
-                    <div className="space-y-6">
-                        <div className="flex items-center gap-3 p-4 bg-green-50 rounded-xl border border-green-100 text-green-700">
-                            <CheckCircle size={24} />
-                            <span className="font-bold">You have joined this pool!</span>
-                        </div>
-
-                        <div className="pt-2">
-                           <h3 className="font-bold mb-3 flex items-center gap-2">
+                  {!progressLoading && hasJoined && (
+                    <div className="space-y-8">
+                        {/* Daily Check-in Section */}
+                        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+                           <h3 className="font-bold mb-3 flex items-center gap-2 text-lg">
                               <Activity size={20} className="text-[#0052FF]" />
                               Daily Check-in
                            </h3>
@@ -263,8 +290,130 @@ export default function PoolDetailsPage({ params }: { params: Promise<{ id: stri
                               </TransactionStatus>
                            </Transaction>
                         </div>
+
+                        {/* Voting Section */}
+                        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+                            <h3 className="font-bold mb-4 flex items-center gap-2 text-lg">
+                                <ShieldCheck size={20} className="text-purple-600" />
+                                Community Voting (Day {currentDay + 1})
+                            </h3>
+                            
+                            {submissions && participants && participants.length > 0 ? (
+                                <div className="space-y-4">
+                                    {participants.map((participant, idx) => {
+                                        if (participant === address) return null; // Don't vote on self
+                                        
+                                        const submissionResult = submissions[idx];
+                                        const submission = submissionResult.status === "success" ? (submissionResult.result as any) : null;
+                                        // submission struct: [videoHash, timestamp, yesVotes, noVotes, isVerified]
+                                        const videoHash = submission ? submission[0] : "";
+                                        const isVerified = submission ? submission[4] : false;
+
+                                        if (!videoHash) return null; // Skip if no submission
+
+                                        return (
+                                            <div key={participant} className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <span className="text-xs font-mono bg-white px-2 py-1 rounded border border-gray-100 text-gray-500">
+                                                        {participant.slice(0, 6)}...{participant.slice(-4)}
+                                                    </span>
+                                                    {isVerified && <span className="text-green-600 text-xs font-bold flex items-center gap-1"><CheckCircle size={12}/> Verified</span>}
+                                                </div>
+                                                <a href={videoHash} target="_blank" rel="noopener noreferrer" className="text-blue-600 text-sm hover:underline mb-3 block truncate">
+                                                    📹 View Proof
+                                                </a>
+                                                
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <Transaction
+                                                        chainId={CHAIN_ID}
+                                                        calls={[{
+                                                            address: CONTRACT_ADDRESS,
+                                                            abi: HABIT_POOL_ABI,
+                                                            functionName: "vote",
+                                                            args: [poolId, BigInt(currentDay), participant, true]
+                                                        }]}
+                                                    >
+                                                        <TransactionButton className="w-full py-2 bg-green-100 text-green-700 hover:bg-green-200 font-bold rounded-lg text-sm" text="👍 Approve" />
+                                                    </Transaction>
+
+                                                    <Transaction
+                                                        chainId={CHAIN_ID}
+                                                        calls={[{
+                                                            address: CONTRACT_ADDRESS,
+                                                            abi: HABIT_POOL_ABI,
+                                                            functionName: "vote",
+                                                            args: [poolId, BigInt(currentDay), participant, false]
+                                                        }]}
+                                                    >
+                                                        <TransactionButton className="w-full py-2 bg-red-100 text-red-700 hover:bg-red-200 font-bold rounded-lg text-sm" text="👎 Reject" />
+                                                    </Transaction>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    {(!submissions.some((s: any) => s.result && s.result[0])) && (
+                                        <p className="text-center text-gray-500 text-sm italic py-4">No submissions to vote on yet today.</p>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-center text-gray-400 text-sm">Loading participants...</p>
+                            )}
+                        </div>
+
+                        {/* Admin / Settlement Zone */}
+                        <div className="bg-gray-900 p-5 rounded-2xl text-white shadow-lg">
+                             <h3 className="font-bold mb-4 flex items-center gap-2 text-lg">
+                                <Trophy size={20} className="text-yellow-400" />
+                                Pool Status
+                            </h3>
+                            
+                            {(poolDetails as any)?.[5] ? ( // isSettled
+                                <div className="space-y-3">
+                                    <div className="p-3 bg-white/10 rounded-xl text-center">
+                                        <p className="text-yellow-400 font-bold uppercase tracking-widest text-xs mb-1">Status</p>
+                                        <p className="text-xl font-bold">Settled</p>
+                                    </div>
+                                    <Transaction
+                                        chainId={CHAIN_ID}
+                                        calls={[{
+                                            address: CONTRACT_ADDRESS,
+                                            abi: HABIT_POOL_ABI,
+                                            functionName: "withdrawReward",
+                                            args: [poolId]
+                                        }]}
+                                    >
+                                        <TransactionButton className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-xl" text="Claim Funds" />
+                                        <TransactionStatus>
+                                            <TransactionStatusLabel />
+                                            <TransactionStatusAction />
+                                        </TransactionStatus>
+                                    </Transaction>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                   <div className="flex justify-between items-center text-sm mb-2 opacity-80">
+                                      <span>Time Remaining</span>
+                                      <span>{Math.max(0, durationDays - currentDay)} Days</span>
+                                   </div>
+                                   {/* Show Settle button if duration passed */}
+                                   {(currentDay >= durationDays) && (
+                                       <Transaction
+                                            chainId={CHAIN_ID}
+                                            calls={[{
+                                                address: CONTRACT_ADDRESS,
+                                                abi: HABIT_POOL_ABI,
+                                                functionName: "processPoolResults",
+                                                args: [poolId]
+                                            }]}
+                                       >
+                                            <TransactionButton className="w-full py-3 bg-white text-black hover:bg-gray-200 font-bold rounded-xl" text="Settle Pool" />
+                                       </Transaction>
+                                   )}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                 )}
+                  )}
               </>
            )}
         </div>
